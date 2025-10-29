@@ -3,19 +3,20 @@ name = "fiverr-brianley"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13.7"
+requires-python = ">=3.12.11"
 dependencies = [
-    "fastapi>=0.119.1",
-    "google-auth-httplib2>=0.2.0",
-    "google-auth-oauthlib>=1.2.2",
+    "fastapi>=0.120.1",
+    "google-cloud-dialogflow-cx>=2.0.0",
+    "google-genai>=1.46.0",
     "gunicorn>=23.0.0",
     "httpx>=0.28.1",
-    "pip>=25.2",
-    "python-dotenv>=1.1.1",
+    "python-dotenv>=1.2.1",
+    "python-multipart>=0.0.20",
+    "twilio>=9.8.5",
     "uvicorn>=0.38.0",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.14.1",
+    "ruff>=0.14.2",
 ]

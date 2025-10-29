@@ -16,7 +16,7 @@ if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
 
 # Gemini Configuration
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 if not GEMINI_API_KEY:
     raise RuntimeError("GEMINI_API_KEY must be set in environment variables")
@@ -57,3 +57,28 @@ PUBLIC_URL = os.getenv("PUBLIC_URL")
 # Image processing limits
 MAX_IMAGE_SIZE_MB = int(os.getenv("MAX_IMAGE_SIZE_MB", "10"))
 MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024
+
+# Aliases for backward compatibility (CA = Conversational Agent)
+CA_PROJECT_ID = GCA_PROJECT_ID
+CA_LOCATION = GCA_LOCATION
+CA_AGENT_ID = GCA_AGENT_ID
+
+
+def get_gcp_credentials_dict() -> dict:
+    """
+    Parse and return GCP service account credentials as a dictionary.
+
+    Returns:
+        Dictionary containing service account credentials
+
+    Raises:
+        ValueError: If GCP_SA_JSON is not set or invalid
+    """
+    if not GCP_SA_JSON:
+        raise ValueError("GCP_SA_JSON is not set in environment variables")
+
+    try:
+        credentials_dict = json.loads(GCP_SA_JSON)
+        return credentials_dict
+    except json.JSONDecodeError as e:
+        raise ValueError(f"GCP_SA_JSON is not valid JSON: {e}")
