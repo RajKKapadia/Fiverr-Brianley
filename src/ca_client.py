@@ -5,6 +5,7 @@ Google Conversational Agents (Dialogflow CX) client for intent detection.
 import asyncio
 from typing import Any
 
+from google.api_core.client_options import ClientOptions
 from google.cloud.dialogflowcx_v3 import SessionsClient
 from google.cloud.dialogflowcx_v3.types import (
     DetectIntentRequest,
@@ -127,8 +128,17 @@ class ConversationalAgentClient:
 
             logger.info(f"Detecting intent for user {user_id}, session: {session_id}, text: {text}")
 
-            # Create the Sessions client with credentials
-            client = SessionsClient(credentials=self.credentials)
+            # Create the Sessions client with credentials and regional endpoint
+            # Use regional endpoint unless location is 'global'
+            if self.location == "global":
+                client = SessionsClient(credentials=self.credentials)
+            else:
+                api_endpoint = f"{self.location}-dialogflow.googleapis.com"
+                client_options = ClientOptions(api_endpoint=api_endpoint)
+                client = SessionsClient(
+                    credentials=self.credentials,
+                    client_options=client_options
+                )
 
             # Prepare the query input
             text_input = TextInput(text=text)
