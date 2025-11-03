@@ -3,4 +3,4 @@ if __name__ == "__main__":
 
     import uvicorn
 
-    uvicorn.run(app="src.main:app", port=os.getenv("PORT", 8080), reload=True)
+    uvicorn.run(app="src.main:app", port=int(os.getenv("PORT", 8080)), reload=True)
