@@ -1,0 +1,39 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore, with the addition of
+# "#!include" directives (which insert the entries of the given .gitignore-style
+# file at that point).
+
+# Include .gitignore patterns
+#!include:.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Environment (will be set via Cloud Run)
+.env
+.env.*
+
+# Documentation
+*.md
+
+# Tests
+tests/
+.pytest_cache/
+
+# Cache
+.ruff_cache/
+uv.lock

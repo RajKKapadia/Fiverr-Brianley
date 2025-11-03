@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment
+.env
+.env.*
+
+# Documentation
+*.md
+README.md
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Cache
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Misc
+.DS_Store
+*.log
+uv.lock
+pyproject.toml
+.python-version
+Procfile
