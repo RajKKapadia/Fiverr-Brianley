@@ -1,15 +1,8 @@
-"""
-FastAPI application for Twilio webhook integration with Google Conversational Agent and Gemini AI.
-
-This application handles:
-- SMS webhooks with MMS image processing
-- Voice call post-agent routing with live agent handoff
-"""
-
 import json
 from typing import Dict, Any
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Form, Request, Response, HTTPException
+from fastapi import FastAPI, Form, Request, Response
 from fastapi.responses import PlainTextResponse
 import httpx
 
@@ -18,8 +11,6 @@ from src.ca_client import get_ca_client
 from src.gemini_client import get_gemini_client
 from src.utils import (
     build_twiml_message,
-    build_twiml_dial,
-    build_twiml_empty,
     validate_phone_number,
     validate_twilio_signature,
 )
@@ -27,11 +18,48 @@ from src.utils import (
 # Initialize logging
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize clients and log configuration on startup."""
+    logger.info("=" * 60)
+    logger.info("Twilio-GCA-Gemini Integration Service Starting...")
+    logger.info("=" * 60)
+    logger.info(f"GCA Project: {config.GCA_PROJECT_ID}")
+    logger.info(f"GCA Agent: {config.GCA_AGENT_ID}")
+    logger.info(f"GCA Location: {config.GCA_LOCATION}")
+    logger.info(f"Gemini Model: {config.GEMINI_MODEL}")
+    logger.info(f"Max Image Size: {config.MAX_IMAGE_SIZE_MB}MB")
+    logger.info("=" * 60)
+
+    # Initialize clients (singletons will be created on first use)
+    try:
+        get_ca_client()
+        logger.info("✓ Conversational Agent client initialized")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize CA client: {e}")
+
+    try:
+        get_gemini_client()
+        logger.info("✓ Gemini client initialized")
+    except Exception as e:
+        logger.error(f"✗ Failed to initialize Gemini client: {e}")
+
+    logger.info("=" * 60)
+    logger.info("Service ready to accept requests")
+    logger.info("=" * 60)
+
+    yield
+
+    # Cleanup on shutdown (if needed)
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Twilio-GCA-Gemini Integration",
     description="Integration service for Twilio, Google Conversational Agent, and Gemini AI",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
@@ -197,13 +225,28 @@ async def receive_sms(
     logger.info(f"📩 Incoming SMS from {From}")
     logger.info(f"Body: {Body}, Media: {NumMedia}")
 
+    # Get form data for signature validation and media processing
+    form = dict((await request.form()).items())
+
+    # Validate Twilio signature for security
+    request_url = str(request.url)
+    headers = dict(request.headers)
+
+    if not validate_twilio_signature(
+        req_url=request_url,
+        headers=headers,
+        body=form,
+        auth_token=config.TWILIO_AUTH_TOKEN,
+    ):
+        logger.warning(f"⚠️ Invalid Twilio signature from {From} for URL: {request_url}")
+        return PlainTextResponse("Forbidden", status_code=403)
+
+    logger.info("✓ Twilio signature validated")
+
     # Validate phone number format
     if not validate_phone_number(From):
         logger.warning(f"Invalid phone number format: {From}")
         return PlainTextResponse("Invalid phone number", status_code=400)
-
-    # Get form data for media processing
-    form = dict((await request.form()).items())
 
     # Process media attachments
     media_summaries = []
@@ -257,98 +300,3 @@ async def receive_sms(
     logger.debug(f"TwiML Response: {twiml_response}")
 
     return Response(content=twiml_response, media_type="text/xml")
-
-
-@app.post("/after-agent")
-async def after_agent(request: Request):
-    """
-    Handle post-agent voice call routing.
-
-    Validates Twilio signature and routes calls to live agents
-    when handoff is detected.
-
-    Args:
-        request: FastAPI request object
-
-    Returns:
-        TwiML response for call routing
-    """
-    # Parse request body
-    content_type = request.headers.get("content-type", "")
-    if "application/x-www-form-urlencoded" in content_type:
-        form = dict((await request.form()).items())
-        body = form
-    else:
-        try:
-            body = await request.json()
-        except Exception:
-            body = {}
-
-    # Determine request URL for signature validation
-    if config.PUBLIC_URL:
-        req_url = config.PUBLIC_URL
-    else:
-        req_url = str(request.url)
-
-    # Validate Twilio signature
-    if not validate_twilio_signature(
-        req_url, dict(request.headers), body, config.TWILIO_AUTH_TOKEN
-    ):
-        logger.warning(f"Invalid Twilio signature for request: {req_url}")
-        raise HTTPException(status_code=403, detail="Invalid signature")
-
-    # Check for live agent handoff status
-    status = (
-        body.get("VirtualAgentStatus") or body.get("virtualAgentStatus") or ""
-    ).lower()
-
-    if status != "live-agent-handoff":
-        logger.info(f"No handoff detected (status: {status})")
-        return Response(content=build_twiml_empty(), media_type="text/xml")
-
-    # Extract transfer information from metadata
-    meta = extract_metadata(body)
-    to = meta.get("transfer_to") or body.get("transfer_to") or config.CAREGIVER_E164
-    say = meta.get("announce") or "Connecting you now. Please hold."
-
-    logger.info(f"🚨 Live Agent Handoff - Transferring to {to}")
-
-    twiml = build_twiml_dial(to=to, caller_id=config.CALLER_ID_E164, say=say)
-    return Response(content=twiml, media_type="text/xml")
-
-
-# ===========================
-# Startup Event
-# ===========================
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize clients and log configuration on startup."""
-    logger.info("=" * 60)
-    logger.info("Twilio-GCA-Gemini Integration Service Starting...")
-    logger.info("=" * 60)
-    logger.info(f"GCA Project: {config.GCA_PROJECT_ID}")
-    logger.info(f"GCA Agent: {config.GCA_AGENT_ID}")
-    logger.info(f"GCA Location: {config.GCA_LOCATION}")
-    logger.info(f"Gemini Model: {config.GEMINI_MODEL}")
-    logger.info(f"Max Image Size: {config.MAX_IMAGE_SIZE_MB}MB")
-    logger.info(f"Caller ID: {config.CALLER_ID_E164}")
-    logger.info("=" * 60)
-
-    # Initialize clients (singletons will be created on first use)
-    try:
-        get_ca_client()
-        logger.info("✓ Conversational Agent client initialized")
-    except Exception as e:
-        logger.error(f"✗ Failed to initialize CA client: {e}")
-
-    try:
-        get_gemini_client()
-        logger.info("✓ Gemini client initialized")
-    except Exception as e:
-        logger.error(f"✗ Failed to initialize Gemini client: {e}")
-
-    logger.info("=" * 60)
-    logger.info("Service ready to accept requests")
-    logger.info("=" * 60)

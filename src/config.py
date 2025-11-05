@@ -47,10 +47,6 @@ except json.JSONDecodeError as e:
 
 GOOGLE_SCOPES = ["https://www.googleapis.com/auth/cloud-platform"]
 
-# Phone Numbers
-CALLER_ID_E164 = os.getenv("CALLER_ID_E164", "+1XXXYYYZZZZ")
-CAREGIVER_E164 = os.getenv("CAREGIVER_E164", "+91XXXXXXXXXX")
-
 # Public URL for webhook validation
 PUBLIC_URL = os.getenv("PUBLIC_URL")
 
