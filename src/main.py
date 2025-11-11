@@ -229,7 +229,16 @@ async def receive_sms(
     form = dict((await request.form()).items())
 
     # Validate Twilio signature for security
-    request_url = str(request.url)
+    # IMPORTANT: Reconstruct the public-facing URL for signature validation
+    # Cloud Run terminates HTTPS and forwards HTTP internally, so we need to use
+    # the x-forwarded-proto header to get the correct protocol
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.url.netloc)
+    path = request.url.path
+    query = f"?{request.url.query}" if request.url.query else ""
+    request_url = f"{proto}://{host}{path}{query}"
+
+    logger.info(f"Request URL for signature validation: {request_url}")
     headers = dict(request.headers)
 
     if not validate_twilio_signature(
